@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Validador de Estoque · Genica × Totvs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --ink:#17212B;
+    --bg:#EEF1F3;
+    --panel:#FFFFFF;
+    --line:#D7DCE1;
+    --line-strong:#B9C2CA;
+    --accent:#B9791E;
+    --accent-ink:#7A4F10;
+    --ok:#276B45;
+    --ok-bg:#E7F2EA;
+    --div:#A23A22;
+    --div-bg:#FBEAE4;
+    --miss:#5B6672;
+    --miss-bg:#EEF0F1;
+    --muted:#5B6672;
+    --mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    --head:'Space Grotesk', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:var(--mono);
+    font-size:14px;
+    line-height:1.5;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;}
+  .wrap{
+    max-width:1120px;
+    margin:0 auto;
+    padding:40px 24px 80px;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    padding-bottom:28px;
+    border-bottom:2px solid var(--ink);
+    margin-bottom:32px;
+    flex-wrap:wrap;
+  }
+  h1{
+    font-family:var(--head);
+    font-weight:700;
+    font-size:clamp(26px,4vw,34px);
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  header p{
+    margin:0;
+    color:var(--muted);
+    max-width:52ch;
+    font-size:13.5px;
+  }
+  .stamp{
+    font-family:var(--head);
+    font-weight:600;
+    font-size:12px;
+    letter-spacing:.03em;
+    color:var(--accent-ink);
+    border:1.5px solid var(--accent);
+    padding:9px 14px;
+    transform:rotate(-2deg);
+    white-space:nowrap;
+    flex-shrink:0;
+    margin-top:4px;
+  }
+
+  /* ---------- upload ---------- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+  }
+  .upload{
+    padding:28px;
+    margin-bottom:24px;
+  }
+  .drop{
+    border:1.5px dashed var(--line-strong);
+    padding:32px 20px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .drop:hover, .drop.drag{
+    border-color:var(--accent);
+    background:#FBF6EC;
+  }
+  .drop-title{
+    font-family:var(--head);
+    font-weight:600;
+    font-size:15px;
+    margin-bottom:4px;
+  }
+  .drop-sub{
+    color:var(--muted);
+    font-size:12.5px;
+  }
+  input[type=file]{display:none;}
+
+  .filename{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:14px;
+    font-size:12.5px;
+    color:var(--muted);
+  }
+  .filename strong{color:var(--ink);}
+  .link-btn{
+    background:none;
+    border:none;
+    color:var(--accent-ink);
+    font-family:var(--mono);
+    font-size:12.5px;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:0;
+  }
+
+  .mapping{
+    display:none;
+    margin-top:20px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+  }
+  .mapping.show{display:block;}
+  .mapping-row{
+    display:flex;
+    gap:20px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-bottom:18px;
+  }
+  .field{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    flex:1 1 220px;
+  }
+  .field label{
+    font-family:var(--head);
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--muted);
+  }
+  select, .text-input{
+    font-family:var(--mono);
+    font-size:13px;
+    padding:9px 10px;
+    border:1px solid var(--line-strong);
+    background:var(--panel);
+    color:var(--ink);
+  }
+  select:focus, .text-input:focus, button:focus-visible, .drop:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+  .btn{
+    font-family:var(--head);
+    font-weight:600;
+    font-size:13.5px;
+    padding:11px 22px;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    cursor:pointer;
+  }
+  .btn:hover{background:#000;}
+  .btn:disabled{background:#A9B1B8;cursor:not-allowed;}
+
+  .error{
+    display:none;
+    margin-top:14px;
+    padding:12px 14px;
+    background:var(--div-bg);
+    color:var(--div);
+    font-size:12.5px;
+    border-left:3px solid var(--div);
+  }
+  .error.show{display:block;}
+
+  /* ---------- results ---------- */
+  #results{display:none;}
+  #results.show{display:block;}
+
+  .summary{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    border:1px solid var(--line);
+    background:var(--panel);
+    margin-bottom:20px;
+  }
+  .summary div{
+    padding:18px 20px;
+    border-left:1px solid var(--line);
+  }
+  .summary div:first-child{border-left:none;}
+  .summary .num{
+    font-family:var(--head);
+    font-size:26px;
+    font-weight:700;
+    display:block;
+    line-height:1.1;
+  }
+  .summary .lbl{
+    font-size:11.5px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
+  .summary .ok .num{color:var(--ok);}
+  .summary .div .num{color:var(--div);}
+  .summary .miss .num{color:var(--miss);}
+
+  .controls{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .controls .text-input{flex:1 1 260px;}
+  .controls select{flex:0 0 190px;}
+
+  .table-scroll{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    background:var(--panel);
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:760px;
+  }
+  thead th{
+    text-align:left;
+    font-family:var(--head);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+    color:var(--muted);
+    padding:11px 14px;
+    border-bottom:2px solid var(--ink);
+    position:sticky;
+    top:0;
+    background:var(--panel);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+    font-size:13px;
+  }
+  tbody tr:hover td{background:#F7F8F9;}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  td.desc{max-width:320px;}
+  .tag{
+    display:inline-block;
+    font-family:var(--head);
+    font-size:11px;
+    font-weight:600;
+    letter-spacing:.02em;
+    padding:3px 8px;
+    border-left:3px solid transparent;
+    white-space:nowrap;
+  }
+  .tag.ok{background:var(--ok-bg);color:var(--ok);border-color:var(--ok);}
+  .tag.div{background:var(--div-bg);color:var(--div);border-color:var(--div);}
+  .tag.miss{background:var(--miss-bg);color:var(--miss);border-color:var(--miss);}
+
+  .empty-row td{
+    text-align:center;
+    color:var(--muted);
+    padding:32px 14px;
+  }
+
+  .foot-note{
+    margin-top:14px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  @media (max-width:640px){
+    .summary{grid-template-columns:repeat(2,1fr);}
+    .summary div:nth-child(3){border-left:none;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Validador de Estoque</h1>
+      <p>Confere o saldo disponível da Genica contra a quantidade do Totvs, lote a lote, e aponta onde bate e onde diverge.</p>
+    </div>
+    <div class="stamp">GENICA × TOTVS</div>
+  </header>
+
+  <section class="panel upload">
+    <div class="drop" id="drop" tabindex="0" role="button" aria-label="Selecionar planilha">
+      <div class="drop-title">Solte a planilha aqui ou clique para selecionar</div>
+      <div class="drop-sub">.xlsx com as abas de saldo Genica e de saldo Totvs — mesmo modelo a cada validação</div>
+    </div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+    <div class="filename" id="filenameRow" style="display:none;">
+      <span>Arquivo carregado: <strong id="filenameText"></strong></span>
+      <button class="link-btn" id="changeFileBtn">trocar arquivo</button>
+    </div>
+
+    <div class="error" id="errorBox"></div>
+
+    <div class="mapping" id="mapping">
+      <div class="mapping-row">
+        <div class="field">
+          <label for="sheetGenica">Aba Genica (saldo disponível)</label>
+          <select id="sheetGenica"></select>
+        </div>
+        <div class="field">
+          <label for="sheetTotvs">Aba Totvs (quantidade)</label>
+          <select id="sheetTotvs"></select>
+        </div>
+      </div>
+      <button class="btn" id="validateBtn">Validar estoque</button>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="summary">
+      <div><span class="num" id="countTotal">0</span><span class="lbl">Lotes comparados</span></div>
+      <div class="ok"><span class="num" id="countOk">0</span><span class="lbl">Ok</span></div>
+      <div class="div"><span class="num" id="countDiv">0</span><span class="lbl">Divergência</span></div>
+      <div class="miss"><span class="num" id="countMiss">0</span><span class="lbl">Ausente em uma base</span></div>
+    </div>
+
+    <div class="controls">
+      <input class="text-input" id="search" type="text" placeholder="Buscar por produto, descrição ou lote…">
+      <select id="statusFilter">
+        <option value="all">Todos os status</option>
+        <option value="ok">Só Ok</option>
+        <option value="div">Só Divergência</option>
+        <option value="miss">Só Ausente</option>
+      </select>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Descrição</th>
+            <th>Lote</th>
+            <th class="num">Qtd Genica</th>
+            <th class="num">Qtd Totvs</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="foot-note" id="footNote"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  const drop = document.getElementById('drop');
+  const fileInput = document.getElementById('fileInput');
+  const filenameRow = document.getElementById('filenameRow');
+  const filenameText = document.getElementById('filenameText');
+  const changeFileBtn = document.getElementById('changeFileBtn');
+  const errorBox = document.getElementById('errorBox');
+  const mapping = document.getElementById('mapping');
+  const sheetGenicaSel = document.getElementById('sheetGenica');
+  const sheetTotvsSel = document.getElementById('sheetTotvs');
+  const validateBtn = document.getElementById('validateBtn');
+  const results = document.getElementById('results');
+  const tbody = document.getElementById('tbody');
+  const search = document.getElementById('search');
+  const statusFilter = document.getElementById('statusFilter');
+  const footNote = document.getElementById('footNote');
+
+  let workbook = null;
+  let rows = []; // full comparison rows
+
+  function showError(msg){
+    errorBox.textContent = msg;
+    errorBox.classList.add('show');
+  }
+  function clearError(){
+    errorBox.textContent = '';
+    errorBox.classList.remove('show');
+  }
+
+  function norm(v){
+    if(v === null || v === undefined) return '';
+    let s = String(v).trim();
+    if(/^-?\d+\.0$/.test(s)) s = s.slice(0, -2);
+    return s;
+  }
+  function normHeader(h){
+    return norm(h).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function toNumber(v){
+    if(v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+
+  function sheetToRows(sheetName){
+    const ws = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    // find header row: first row with 2+ non-empty cells that looks like labels
+    let headerIdx = -1;
+    for(let i=0;i<Math.min(data.length,10);i++){
+      const row = data[i] || [];
+      const filled = row.filter(c => c !== null && c !== '').length;
+      if(filled >= 3){ headerIdx = i; break; }
+    }
+    if(headerIdx === -1) headerIdx = 0;
+    const headers = (data[headerIdx] || []).map(normHeader);
+    const body = data.slice(headerIdx+1).filter(r => r.some(c => c !== null && c !== ''));
+    return {headers, body};
+  }
+
+  function findCol(headers, keywords){
+    for(let i=0;i<headers.length;i++){
+      const h = headers[i];
+      if(keywords.every(k => h.includes(k))) return i;
+    }
+    return -1;
+  }
+
+  function detectSheetKind(sheetName){
+    const {headers} = sheetToRows(sheetName);
+    const hasSaldoDisp = findCol(headers, ['saldo','dispon']) !== -1;
+    const hasQuantidade = findCol(headers, ['quantidade']) !== -1;
+    if(hasSaldoDisp && !hasQuantidade) return 'genica';
+    if(hasQuantidade && !hasSaldoDisp) return 'totvs';
+    return null;
+  }
+
+  function populateSheetSelects(){
+    const names = workbook.SheetNames;
+    sheetGenicaSel.innerHTML = '';
+    sheetTotvsSel.innerHTML = '';
+    names.forEach(n => {
+      const o1 = document.createElement('option'); o1.value = n; o1.textContent = n;
+      const o2 = document.createElement('option'); o2.value = n; o2.textContent = n;
+      sheetGenicaSel.appendChild(o1);
+      sheetTotvsSel.appendChild(o2);
+    });
+    let guessGenica = null, guessTotvs = null;
+    names.forEach(n => {
+      const kind = detectSheetKind(n);
+      if(kind === 'genica' && !guessGenica) guessGenica = n;
+      if(kind === 'totvs' && !guessTotvs) guessTotvs = n;
+    });
+    if(!guessGenica) guessGenica = names[0];
+    if(!guessTotvs) guessTotvs = names.length > 1 ? names[1] : names[0];
+    sheetGenicaSel.value = guessGenica;
+    sheetTotvsSel.value = guessTotvs;
+  }
+
+  function loadWorkbookFromFile(file){
+    clearError();
+    const reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        const data = new Uint8Array(e.target.result);
+        workbook = XLSX.read(data, {type:'array', cellDates:false});
+        if(!workbook.SheetNames.length){
+          showError('Não encontramos nenhuma aba nesse arquivo.');
+          return;
+        }
+        filenameText.textContent = file.name;
+        filenameRow.style.display = 'flex';
+        populateSheetSelects();
+        mapping.classList.add('show');
+        results.classList.remove('show');
+      }catch(err){
+        showError('Não conseguimos ler esse arquivo. Confirme que é um .xlsx válido.');
+      }
+    };
+    reader.onerror = function(){
+      showError('Não conseguimos ler esse arquivo. Tente novamente.');
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  drop.addEventListener('click', () => fileInput.click());
+  drop.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('drag'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('drag');
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) loadWorkbookFromFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', (e) => {
+    if(e.target.files && e.target.files[0]) loadWorkbookFromFile(e.target.files[0]);
+  });
+  changeFileBtn.addEventListener('click', () => {
+    fileInput.value = '';
+    filenameRow.style.display = 'none';
+    mapping.classList.remove('show');
+    results.classList.remove('show');
+    workbook = null;
+  });
+
+  validateBtn.addEventListener('click', () => {
+    clearError();
+    const gName = sheetGenicaSel.value;
+    const tName = sheetTotvsSel.value;
+    if(gName === tName){
+      showError('Selecione abas diferentes para Genica e Totvs.');
+      return;
+    }
+    try{
+      const genica = sheetToRows(gName);
+      const totvs = sheetToRows(tName);
+
+      const gCol = {
+        cod: findCol(genica.headers, ['codigo']) !== -1 ? findCol(genica.headers, ['codigo']) : findCol(genica.headers, ['produto']),
+        desc: findCol(genica.headers, ['descri']),
+        lote: findCol(genica.headers, ['lote']),
+        saldo: findCol(genica.headers, ['saldo','dispon'])
+      };
+      const tCol = {
+        cod: findCol(totvs.headers, ['produto']) !== -1 ? findCol(totvs.headers, ['produto']) : findCol(totvs.headers, ['codigo']),
+        desc: findCol(totvs.headers, ['desc']),
+        lote: findCol(totvs.headers, ['lote']),
+        qtd: findCol(totvs.headers, ['quantidade'])
+      };
+
+      if(gCol.cod === -1 || gCol.lote === -1 || gCol.saldo === -1){
+        showError('Não encontramos as colunas de Código, Lote ou Saldo Disponível na aba Genica selecionada.');
+        return;
+      }
+      if(tCol.cod === -1 || tCol.lote === -1 || tCol.qtd === -1){
+        showError('Não encontramos as colunas de Produto, Lote ou Quantidade na aba Totvs selecionada.');
+        return;
+      }
+
+      const gMap = new Map();
+      genica.body.forEach(r => {
+        const cod = norm(r[gCol.cod]);
+        const lote = norm(r[gCol.lote]);
+        if(!cod || !lote) return;
+        gMap.set(cod+'|'+lote, {
+          produto: cod,
+          descricao: gCol.desc !== -1 ? norm(r[gCol.desc]) : '',
+          lote: lote,
+          saldo: toNumber(r[gCol.saldo])
+        });
+      });
+
+      const tMap = new Map();
+      totvs.body.forEach(r => {
+        const cod = norm(r[tCol.cod]);
+        const lote = norm(r[tCol.lote]);
+        if(!cod || !lote) return;
+        const key = cod+'|'+lote;
+        const qtd = toNumber(r[tCol.qtd]);
+        if(tMap.has(key)){
+          const existing = tMap.get(key);
+          existing.quantidade = (existing.quantidade || 0) + (qtd || 0);
+        } else {
+          tMap.set(key, {
+            produto: cod,
+            descricao: tCol.desc !== -1 ? norm(r[tCol.desc]) : '',
+            lote: lote,
+            quantidade: qtd
+          });
+        }
+      });
+
+      const keys = new Set([...gMap.keys(), ...tMap.keys()]);
+      const out = [];
+      keys.forEach(key => {
+        const g = gMap.get(key);
+        const t = tMap.get(key);
+        const produto = (g && g.produto) || (t && t.produto) || '';
+        const lote = (g && g.lote) || (t && t.lote) || '';
+        const descricao = (g && g.descricao) || (t && t.descricao) || '';
+        const qtdG = g ? g.saldo : null;
+        const qtdT = t ? t.quantidade : null;
+        let status;
+        if(g && t){
+          status = (qtdG === qtdT) ? 'ok' : 'div';
+        } else {
+          status = 'miss';
+        }
+        out.push({produto, descricao, lote, qtdG, qtdT, status,
+          missingSide: !g ? 'genica' : (!t ? 'totvs' : null)});
+      });
+
+      out.sort((a,b) => a.produto.localeCompare(b.produto) || a.lote.localeCompare(b.lote));
+      rows = out;
+      renderSummary();
+      renderTable();
+      results.classList.add('show');
+      results.scrollIntoView({behavior:'smooth', block:'start'});
+    }catch(err){
+      showError('Algo deu errado ao comparar as abas. Confira o modelo do arquivo e tente novamente.');
+    }
+  });
+
+  function renderSummary(){
+    document.getElementById('countTotal').textContent = rows.length.toLocaleString('pt-BR');
+    document.getElementById('countOk').textContent = rows.filter(r=>r.status==='ok').length.toLocaleString('pt-BR');
+    document.getElementById('countDiv').textContent = rows.filter(r=>r.status==='div').length.toLocaleString('pt-BR');
+    document.getElementById('countMiss').textContent = rows.filter(r=>r.status==='miss').length.toLocaleString('pt-BR');
+  }
+
+  function fmtQtd(v){
+    return (v === null || v === undefined) ? '—' : v.toLocaleString('pt-BR');
+  }
+
+  function statusTag(r){
+    if(r.status === 'ok') return '<span class="tag ok">Ok</span>';
+    if(r.status === 'div') return '<span class="tag div">Divergência</span>';
+    return '<span class="tag miss">Ausente em ' + (r.missingSide === 'genica' ? 'Genica' : 'Totvs') + '</span>';
+  }
+
+  function renderTable(){
+    const q = norm(search.value).toLowerCase();
+    const statusVal = statusFilter.value;
+    const filtered = rows.filter(r => {
+      if(statusVal !== 'all' && r.status !== statusVal) return false;
+      if(!q) return true;
+      return r.produto.toLowerCase().includes(q)
+        || r.descricao.toLowerCase().includes(q)
+        || r.lote.toLowerCase().includes(q);
+    });
+
+    if(!filtered.length){
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum lote encontrado com esse filtro.</td></tr>';
+    } else {
+      tbody.innerHTML = filtered.map(r => `
+        <tr>
+          <td>${r.produto || '—'}</td>
+          <td class="desc">${r.descricao || '—'}</td>
+          <td>${r.lote || '—'}</td>
+          <td class="num">${fmtQtd(r.qtdG)}</td>
+          <td class="num">${fmtQtd(r.qtdT)}</td>
+          <td>${statusTag(r)}</td>
+        </tr>
+      `).join('');
+    }
+    footNote.textContent = `Mostrando ${filtered.length.toLocaleString('pt-BR')} de ${rows.length.toLocaleString('pt-BR')} lotes.`;
+  }
+
+  search.addEventListener('input', renderTable);
+  statusFilter.addEventListener('change', renderTable);
+})();
+</script>
+</body>
+</html>
